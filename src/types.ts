@@ -1,0 +1,1 @@
+export type FlatBBox = [number, number, number, number]
