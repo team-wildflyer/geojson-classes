@@ -1,8 +1,8 @@
 import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
-import { objectEquals } from 'ytil'
-import { isPlainObject } from '../../ytil/src/lodashext'
+import { isPlainObject, objectEquals } from 'ytil'
+
 import { BBox } from './BBox'
 import { Coordinate, ensureCoordinate, ensureCoordinate2D, Ring } from './types'
 

@@ -33,7 +33,9 @@
   "dependencies": {
     "@turf/turf": "^7.1.0",
     "@types/geojson": "^7946.0.14",
+    "@types/lodash": "^4.17.16",
     "geojson": "^0.5.0",
+    "lodash": "^4.17.21",
     "semaphore": "workspace:^",
     "ytil": "workspace:^"
   },

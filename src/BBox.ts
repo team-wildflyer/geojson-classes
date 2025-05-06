@@ -1,7 +1,8 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
-import { Geometry } from 'geojson-classes'
 import { arrayEquals, memoized } from 'ytil'
+
+import { Geometry } from './Geometry'
 import { FlatBBox } from './types'
 
 /**
