@@ -32,12 +32,12 @@ describe("BBox", () => {
     
     it("should create a world bbox (excluding the poles, which are typically excluded)", () => {
       const bbox = BBox.world()
-      expect(bbox.raw).toEqual([-180, -85.0511287798066, 180, 85.0511287798066])
+      expect(bbox.bbox).toEqual([-180, -85.0511287798066, 180, 85.0511287798066])
     })
 
     it("should allow overriding the latitude extent", () => {
       const bbox = BBox.world(80)
-      expect(bbox.raw).toEqual([-180, -80, 180, 80])
+      expect(bbox.bbox).toEqual([-180, -80, 180, 80])
     })
   
   })

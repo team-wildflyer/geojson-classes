@@ -1,8 +1,7 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
+import { Geometry } from 'geojson-classes'
 import { arrayEquals, memoized } from 'ytil'
-
-import { Geometry } from './Geometry'
 import { FlatBBox } from './types'
 
 /**
@@ -12,40 +11,44 @@ import { FlatBBox } from './types'
  */
 export class BBox {
 
-  constructor(bbox: BBox | GeoJSON.BBox) {
-    if (bbox instanceof BBox) {
-      this.raw = [...bbox.raw]
-    } else {
-      this.raw = ensureBBox2D(bbox)
+  constructor(bbox: GeoJSON.BBox) {
+    this.bbox = ensureBBox2D(bbox)
 
-      // Latitudes must be strictly increasing.
-      if (this.lat1 > this.lat2) {
-        throw new Error("Invalid bbox: lat1 > lat2")
-      }
-      if (this.lat1 < -90) {
-        throw new Error("Invalid bbox: lat1 < -90")
-      }
-      if (this.lat1 > 90) {
-        throw new Error("Invalid bbox: lat1 > 90")
-      }
+    // Latitudes must be strictly increasing.
+    if (this.lat1 > this.lat2) {
+      throw new Error("Invalid bbox: lat1 > lat2")
+    }
+    if (this.lat1 < -90) {
+      throw new Error("Invalid bbox: lat1 < -90")
+    }
+    if (this.lat1 > 90) {
+      throw new Error("Invalid bbox: lat1 > 90")
+    }
 
-      // Longitudes do not have to, but they must be between -180 and 180.
-      if (this.lon1 < -180) {
-        throw new Error("Invalid bbox: lon1 < -180")
-      }
-      if (this.lon1 > 180) {
-        throw new Error("Invalid bbox: lon1 > 180")
-      }
-      if (this.lon2 < -180) {
-        throw new Error("Invalid bbox: lon2 < -180")
-      }
-      if (this.lon2 > 180) {
-        throw new Error("Invalid bbox: lon2 > 180")
-      }
+    // Longitudes do not have to, but they must be between -180 and 180.
+    if (this.lon1 < -180) {
+      throw new Error("Invalid bbox: lon1 < -180")
+    }
+    if (this.lon1 > 180) {
+      throw new Error("Invalid bbox: lon1 > 180")
+    }
+    if (this.lon2 < -180) {
+      throw new Error("Invalid bbox: lon2 < -180")
+    }
+    if (this.lon2 > 180) {
+      throw new Error("Invalid bbox: lon2 > 180")
     }
   }
 
-  public readonly raw: GeoJSON.BBox
+  public static from(input: BBoxLike) {
+    if (input instanceof BBox) {
+      return new BBox([...input.bbox])
+    } else {
+      return new BBox(input)
+    }
+  }
+
+  public readonly bbox: [number, number, number, number]
 
   public static world(latExtent: number = 85.0511287798066) {
     return new BBox([-180, -latExtent, 180, latExtent])
@@ -60,8 +63,8 @@ export class BBox {
     return new BBox(raw)
   }
 
-  public static around(geometries: Array<Geometry | GeoJSON.Geometry>) {
-    const features = geometries.map(g => turf.feature(g instanceof Geometry ? g.raw : g))
+  public static around(...geometries: Array<Geometry | GeoJSON.Geometry>) {
+    const features = geometries.map(g => turf.feature(g instanceof Geometry ? g.geometry : g))
     const collection = turf.featureCollection(features)
     const bbox = turf.bbox(collection)
     return new BBox(bbox)
@@ -69,10 +72,10 @@ export class BBox {
 
   // #region Derived
 
-  public get lon1() { return this.raw[0] }
-  public get lat1() { return this.raw[1] }
-  public get lon2() { return this.raw[2] }
-  public get lat2() { return this.raw[3] }
+  public get lon1() { return this.bbox[0] }
+  public get lat1() { return this.bbox[1] }
+  public get lon2() { return this.bbox[2] }
+  public get lat2() { return this.bbox[3] }
 
   public get lonspan() {
     if (this.inverted) {
@@ -82,7 +85,7 @@ export class BBox {
     }
   }
   public get latspan() {
-    return this.raw[3] - this.raw[1]
+    return this.bbox[3] - this.bbox[1]
   }
 
   public get southWest(): Geometry<Point> {
@@ -118,24 +121,24 @@ export class BBox {
   }
 
   public get global() {
-    if (this.raw[0] > -180) { return false }
-    if (this.raw[2] < 180) { return false }
-    if (this.raw[1] > -90) { return false }
-    if (this.raw[3] < 90) { return false }
+    if (this.bbox[0] > -180) { return false }
+    if (this.bbox[2] < 180) { return false }
+    if (this.bbox[1] > -90) { return false }
+    if (this.bbox[3] < 90) { return false }
 
     return true    
   }
 
   @memoized
   public get center(): Geometry<Point> {
-    const lon = this.inverted ? (this.raw[0] + this.raw[2] + 360) / 2 : (this.raw[0] + this.raw[2]) / 2
-    const lat = (this.raw[1] + this.raw[3]) / 2
+    const lon = this.inverted ? (this.bbox[0] + this.bbox[2] + 360) / 2 : (this.bbox[0] + this.bbox[2]) / 2
+    const lat = (this.bbox[1] + this.bbox[3]) / 2
     return Geometry.point(lon, lat)
   }
 
   @memoized
-  public get polygon(): Polygon {
-    return turf.bboxPolygon(this.raw).geometry
+  public get polygon(): Geometry<Polygon> {
+    return new Geometry(turf.bboxPolygon(this.bbox).geometry)
   }
 
   // #endregion
@@ -143,7 +146,7 @@ export class BBox {
   // #region Testers
 
   public equals(other: BBox) {
-    return arrayEquals(this.raw, other.raw)
+    return arrayEquals(this.bbox, other.bbox)
   }
 
   public contains(point: Geometry<Point>) {
@@ -225,7 +228,7 @@ export class BBox {
   // #region Conversions
 
   public toArray() {
-    return [...this.raw]
+    return [...this.bbox]
   }
 
   public toString(decimals: number = 2) {
@@ -249,6 +252,8 @@ export class BBox {
   // #endregion
 
 }
+
+export type BBoxLike = BBox | GeoJSON.BBox
 
 export function ensureBBox2D(bbox: GeoJSON.BBox): FlatBBox {
   if (bbox.length === 4) {

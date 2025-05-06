@@ -1,137 +1,149 @@
 import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
-
+import { isArray } from 'lodash'
+import { objectEquals } from 'ytil'
+import { isPlainObject } from '../../ytil/src/lodashext'
 import { BBox } from './BBox'
+import { Coordinate, ensureCoordinate, Ring } from './types'
 
-/**
- * Utility wrapper for (some) GeoJSON geometries.
- */
-export class Geometry<R extends SupportedGeometry = SupportedGeometry> {
+export type SupportedGeometry = Point | Polygon | MultiPolygon
 
-  private constructor(
-    public readonly raw: R,
-    private readonly flat: boolean,
+export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
+
+  public constructor(
+    public readonly geometry: G
   ) {}
 
-  public static from<R extends SupportedGeometry>(raw: R, flat: boolean = true): Geometry<R> {
-    if (flat) {
-      return new Geometry(ensure2D(raw), true)
+  public static point(point: Geometry<Point> | Point | Coordinate): Geometry<Point>
+  public static point(lng: number, lat: number, elevation?: number): Geometry<Point>
+  public static point(...args: any[]): Geometry<Point> {
+    if (args.length === 1 && args[0] instanceof Geometry) {
+      const [lng, lat, elevation] = args[0].geometry.coordinates
+      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
+    } else if (args.length === 1 && isPlainObject(args[0]) && args[0].type === 'Point') {
+      return new Geometry(args[0] as unknown as Point)
+    } else if (args.length === 1 && isArray(args[0])) {
+      const [lng, lat, elevation] = args[0]
+      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
     } else {
-      return new Geometry(raw, false)
+      const [lng, lat, elevation] = args
+      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
     }
   }
 
-  public static point(lng: number, lat: number) {
-    return new Geometry({
-      type:        'Point',
-      coordinates: [lng, lat],
-    }, true)
-  }
-
-  public static point3D(lng: number, lat: number, elevation: number) {
-    return new Geometry({
-      type:        'Point',
-      coordinates: [lng, lat, elevation],
-    }, false)
-  }
-
-  public static polygon(coordinates: Array<Array<[number, number]>>) {
+  public static polygon(coordinates: Ring[]) {
     return new Geometry({
       type: 'Polygon',
       coordinates,
-    }, true)
+    })
   }
 
-  public static polygon3D(coordinates: Array<Array<[number, number, number]>>) {
+  public static multiPolygon(coordinates: Ring[][]) {
     return new Geometry({
-      type: 'Polygon',
+      type: 'MultiPolygon',
       coordinates,
-    }, false)
-  }
-
-  public static isGeometry(arg: unknown, type?: SupportedGeometry['type']): arg is Geometry {
-    if (!(arg instanceof Geometry)) {
-      return false
-    }
-
-    if (type !== undefined && arg.type !== type) {
-      return false
-    }
-
-    return true
+    })
   }
 
   public get type() {
-    return this.raw.type
+    return this.geometry.type
   }
 
-  public get coordinates(): R['coordinates'] {
-    return this.raw.coordinates
+  public get coordinates() {
+    return this.geometry.coordinates as ensureCoordinate<G['coordinates']>
+  }
+
+  public get polygons(): Geometry<Polygon>[] {
+    switch (this.geometry.type) {
+    case 'Point':
+      return [new Geometry({
+        type:        'Polygon',
+        coordinates: [[[
+          this.geometry.coordinates[0],
+          this.geometry.coordinates[1],
+        ]]],
+      })]
+
+    case 'Polygon':
+      return [
+        new Geometry<Polygon>(this.geometry),
+      ]
+
+    case 'MultiPolygon':
+      return this.geometry.coordinates.map(coordinates => new Geometry({
+        type: 'Polygon',
+        coordinates,
+      }))
+    }
   }
 
   public get center(): Point {
-    return turf.center(this.raw).geometry
+    return turf.center(this.geometry).geometry
   }
 
   public get centroid(): Point {
-    return turf.centroid(this.raw).geometry
+    return turf.centroid(this.geometry).geometry
   }
 
   public get bbox(): BBox {
-    return new BBox(turf.bbox(this.raw))
+    return BBox.around(this)
   }
 
-  public equals(other: Geometry<R> | R) {
-    const ensureDimensionality = this.flat ? ensure2D : ensure3D
-    if (other instanceof Geometry) {
-      return turf.booleanEqual(this.raw, ensureDimensionality(other.raw))
+  public toMultiPolygon(this: Geometry<Polygon>): Geometry<MultiPolygon> {
+    return Geometry.multiPolygon([this.coordinates])
+  }
+
+  public get searchParam() {
+    if (this.geometry.type === 'Point') {
+      return `${this.center.coordinates[0]},${this.center.coordinates[1]}`
     } else {
-      return turf.booleanEqual(this.raw, ensureDimensionality(other))
+      return turf.coordAll(this.geometry).map(([x, y]) => `${x},${y}`).join(';')
     }
   }
 
-}
-
-export function ensure2D<G extends SupportedGeometry>(geometry: G): G {
-  if (geometry.type === 'Point') {
-    return {
-      ...geometry,
-      coordinates: [geometry.coordinates[0], geometry.coordinates[1]],
+  public transpose(): Geometry {
+    switch (this.geometry.type) {
+    case 'Point':
+      return new Geometry({
+        type:        'Point',
+        coordinates: [this.geometry.coordinates[1], this.geometry.coordinates[0], this.geometry.coordinates[2]],
+      })
+    case 'Polygon':
+      return new Geometry({
+        type:        'Polygon',
+        coordinates: this.geometry.coordinates.map(ring => ring.map(([x, y, elevation]) => [y, x, elevation])),
+      })
+    case 'MultiPolygon':
+      return new Geometry({
+        type:        'MultiPolygon',
+        coordinates: this.geometry.coordinates.map(polygon => polygon.map(ring => ring.map(([x, y, elevation]) => [y, x, elevation]))),
+      })
     }
-  } else if (geometry.type === 'Polygon') {
-    return {
-      ...geometry,
-      coordinates: geometry.coordinates.map(ring => ring.map(point => [point[0], point[1]])),
-    }
-  } else if (geometry.type === 'MultiPolygon') {
-    return {
-      ...geometry,
-      coordinates: geometry.coordinates.map(polygon => polygon.map(ring => ring.map(point => [point[0], point[1]]))),
-    }
-  } else {
-    return geometry
   }
-}
 
-export function ensure3D<G extends SupportedGeometry>(geometry: G): G {
-  if (geometry.type === 'Point') {
-    return {
-      ...geometry,
-      coordinates: [geometry.coordinates[0], geometry.coordinates[1], 0],
-    }
-  } else if (geometry.type === 'Polygon') {
-    return {
-      ...geometry,
-      coordinates: geometry.coordinates.map(ring => ring.map(point => [point[0], point[1], 0])),
-    }
-  } else if (geometry.type === 'MultiPolygon') {
-    return {
-      ...geometry,
-      coordinates: geometry.coordinates.map(polygon => polygon.map(ring => ring.map(point => [point[0], point[1], 0]))),
-    }
-  } else {
-    return geometry
+  public equals(other: Geometry): boolean {
+    return objectEquals(this.geometry, other.geometry)
   }
-}
 
-export type SupportedGeometry = Point | Polygon | MultiPolygon
+  public overlaps(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
+    // booleanOverlap only works if both are of the same type, so coerce if they're not.
+    const coerce = (): readonly [Geometry, Geometry] => {
+      if (this.geometry.type === 'Polygon' && other.geometry.type === 'MultiPolygon') {
+        return [(this as Geometry<Polygon>).toMultiPolygon(), other] as const
+      } else if (this.geometry.type === 'MultiPolygon' && other.geometry.type === 'Polygon') {
+        return [this, (other as Geometry<Polygon>).toMultiPolygon()] as const
+      } else {
+        return [this, other] as const
+      }
+    }
+
+    const [a, b] = coerce()
+
+    // booleanOverlap doesn't work if one geometry is contained in the other so check contains as well.
+    if (turf.booleanOverlap(a.geometry, b.geometry)) { return true }
+    if (turf.booleanContains(a.geometry, b.geometry)) { return true }
+    if (turf.booleanContains(b.geometry, a.geometry)) { return true }
+    return false
+  }
+
+}
