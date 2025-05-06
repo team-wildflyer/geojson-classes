@@ -17,7 +17,8 @@
     "moduleResolution": "Node10",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "rootDir": "src"
+    "rootDir": "src",
+    "types": ["jest"]
   },
   "include": [
     "src"

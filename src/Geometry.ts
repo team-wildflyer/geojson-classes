@@ -4,7 +4,7 @@ import { isArray } from 'lodash'
 import { objectEquals } from 'ytil'
 import { isPlainObject } from '../../ytil/src/lodashext'
 import { BBox } from './BBox'
-import { Coordinate, ensureCoordinate, Ring } from './types'
+import { Coordinate, ensureCoordinate, ensureCoordinate2D, Ring } from './types'
 
 export type SupportedGeometry = Point | Polygon | MultiPolygon
 
@@ -53,6 +53,17 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
     return this.geometry.coordinates as ensureCoordinate<G['coordinates']>
   }
 
+  public get coordinates2D() {
+    switch (this.geometry.type) {
+    case 'Point':
+      return (this as Geometry<Point>).coordinates.slice(0, 2) as ensureCoordinate2D<G['coordinates']>
+    case 'Polygon':
+      return (this as Geometry<Polygon>).coordinates.map(ring => ring.map(coordinate => coordinate.slice(0, 2))) as ensureCoordinate2D<G['coordinates']>
+    case 'MultiPolygon':
+      return (this as Geometry<MultiPolygon>).coordinates.map(polygon => polygon.map(ring => ring.map(coordinate => coordinate.slice(0, 2)))) as ensureCoordinate2D<G['coordinates']>
+    }
+  }
+
   public get polygons(): Geometry<Polygon>[] {
     switch (this.geometry.type) {
     case 'Point':
@@ -77,12 +88,12 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
     }
   }
 
-  public get center(): Point {
-    return turf.center(this.geometry).geometry
+  public get center(): Geometry<Point> {
+    return Geometry.point(turf.center(this.geometry).geometry)
   }
 
-  public get centroid(): Point {
-    return turf.centroid(this.geometry).geometry
+  public get centroid(): Geometry<Point> {
+    return Geometry.point(turf.centroid(this.geometry).geometry)
   }
 
   public get bbox(): BBox {

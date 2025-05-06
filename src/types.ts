@@ -13,3 +13,9 @@ export type ensureCoordinate<A extends number[] | number[][][] | number[][][][]>
     A extends number[][][] ? Ring[] :
       A extends number[][][][] ? Ring[][] :
         never
+
+export type ensureCoordinate2D<A extends number[] | number[][][] | number[][][][]> =
+  A extends number[] ? Coordinate2D :
+    A extends number[][][] ? Ring2D[] :
+      A extends number[][][][] ? Ring2D[][] :
+        never
