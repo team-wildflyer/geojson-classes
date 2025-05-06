@@ -2,7 +2,6 @@ import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import { isPlainObject, objectEquals } from 'ytil'
-
 import { BBox } from './BBox'
 import { Coordinate, coordinates, ensureCoordinate2D, Ring, SupportedGeometry } from './types'
 
@@ -137,25 +136,8 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return objectEquals(this.geometry, other.geometry)
   }
 
-  public overlaps(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
-    // booleanOverlap only works if both are of the same type, so coerce if they're not.
-    const coerce = (): readonly [Geometry, Geometry] => {
-      if (this.geometry.type === 'Polygon' && other.geometry.type === 'MultiPolygon') {
-        return [(this as Geometry<Polygon>).toMultiPolygon(), other] as const
-      } else if (this.geometry.type === 'MultiPolygon' && other.geometry.type === 'Polygon') {
-        return [this, (other as Geometry<Polygon>).toMultiPolygon()] as const
-      } else {
-        return [this, other] as const
-      }
-    }
-
-    const [a, b] = coerce()
-
-    // booleanOverlap doesn't work if one geometry is contained in the other so check contains as well.
-    if (turf.booleanOverlap(a.geometry, b.geometry)) { return true }
-    if (turf.booleanContains(a.geometry, b.geometry)) { return true }
-    if (turf.booleanContains(b.geometry, a.geometry)) { return true }
-    return false
+  public intersects(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
+    return turf.booleanIntersects(this.geometry, other.geometry)
   }
 
 }
