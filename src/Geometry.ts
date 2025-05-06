@@ -3,19 +3,22 @@ import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import { isPlainObject, objectEquals } from 'ytil'
 import { BBox } from './BBox'
-import { Coordinate, coordinates, ensureCoordinate2D, Ring, SupportedGeometry } from './types'
+import {
+  Coordinate,
+  Coordinate2D,
+  coordinates,
+  ensureCoordinate2D,
+  Ring,
+  SupportedGeometry,
+} from './types'
 
-export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends boolean = false> {
+export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends true | undefined = undefined> {
 
   public constructor(
     public readonly geometry: G
   ) {}
 
-  public static isGeometry<G extends SupportedGeometry>(input: any, type?: G['type']): input is Geometry<G> {
-    if (!(input instanceof Geometry)) { return false }
-    if (type != null && input.type !== type) { return false }
-    return true
-  }
+  // #region Factory
 
   public static from<G extends SupportedGeometry>(input: Geometry<G> | G): Geometry<G> {
     if (input instanceof Geometry) {
@@ -56,42 +59,97 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     })
   }
 
+  // #endregion
+
+  // #region Static methods
+
+  public static isGeometry<G extends SupportedGeometry>(input: any, type?: G['type']): input is Geometry<G> {
+    if (!(input instanceof Geometry)) { return false }
+    if (type != null && input.type !== type) { return false }
+    return true
+  }
+
+  // #endregion
+
+  // #region Properties
+
   public get type(): G['type'] {
     return this.geometry.type
   }
-
-  public get coordinates(): coordinates<this> {
-    return this.geometry.coordinates as coordinates<this>
-  }
-
-  public get coordinates2D() {
-    switch (this.geometry.type) {
-    case 'Point':
-      return (this as Geometry<Point>).coordinates.slice(0, 2) as ensureCoordinate2D<G['coordinates']>
-    case 'Polygon':
-      return (this as Geometry<Polygon>).coordinates.map(ring => ring.map(coordinate => coordinate.slice(0, 2))) as ensureCoordinate2D<G['coordinates']>
-    case 'MultiPolygon':
-      return (this as Geometry<MultiPolygon>).coordinates.map(polygon => polygon.map(ring => ring.map(coordinate => coordinate.slice(0, 2)))) as ensureCoordinate2D<G['coordinates']>
-    }
-  }
-
-  public flat(): Geometry<G, true> {
-    const coordinates = this.coordinates2D
-    const geometry = {type: this.type, coordinates} as SupportedGeometry as G
-    return new Geometry(geometry) as Geometry<G, true>
-  }
-
+  
   public get center(): Geometry<Point> {
     return Geometry.point(turf.center(this.geometry).geometry)
   }
-
+  
   public get centroid(): Geometry<Point> {
     return Geometry.point(turf.centroid(this.geometry).geometry)
   }
-
+  
   public get bbox(): BBox {
     return BBox.around(this)
   }
+  
+  // #endregion
+
+  // #region Coordinates
+
+  public get coordinates(): coordinates<G, Flat> {
+    return this.geometry.coordinates as coordinates<G, Flat>
+  }
+
+  public get allCoordinates(): Array<Flat extends true ? Coordinate2D : Coordinate> {
+    return Array.from(this.eachCoordinate())
+  }
+
+  private *eachCoordinate(): Generator<Flat extends true ? Coordinate2D : Coordinate> {
+    switch (this.geometry.type) {
+    case 'Point':
+      yield (this as Geometry<Point>).geometry.coordinates as Flat extends true ? Coordinate2D : Coordinate
+      break
+    case 'Polygon':
+      for (const ring of (this as Geometry<Polygon>).coordinates) {
+        for (const coordinate of ring) {
+          yield coordinate as Flat extends true ? Coordinate2D : Coordinate
+        }
+      }
+      break
+    case 'MultiPolygon':
+      for (const polygon of (this as Geometry<MultiPolygon>).coordinates) {
+        for (const ring of polygon) {
+          for (const coordinate of ring) {
+            yield coordinate as Flat extends true ? Coordinate2D : Coordinate
+          }
+        }
+      }
+      break
+    }
+  }
+
+  public isFlat(): Flat extends true ? true : boolean {
+    const isFlat = this.allCoordinates[0].length === 2
+    return isFlat as Flat extends true ? true : boolean
+  }
+
+  public flat(): Geometry<G, true> {
+    const coordinates2D = (() => {
+      switch (this.geometry.type) {
+      case 'Point':
+        return (this as Geometry<Point>).coordinates.slice(0, 2) as ensureCoordinate2D<G['coordinates']>
+      case 'Polygon':
+        return (this as Geometry<Polygon>).coordinates.map(ring => ring.map(coordinate => coordinate.slice(0, 2))) as ensureCoordinate2D<G['coordinates']>
+      case 'MultiPolygon':
+        return (this as Geometry<MultiPolygon>).coordinates.map(polygon => polygon.map(ring => ring.map(coordinate => coordinate.slice(0, 2)))) as ensureCoordinate2D<G['coordinates']>
+      }
+    })()
+  
+    const geometry = {
+      type:        this.type,
+      coordinates: coordinates2D,
+    } as SupportedGeometry as G
+    return new Geometry(geometry) as Geometry<G, true>
+  }
+
+  // #endregion
 
   public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id, bbox?: boolean} = {}): GeoJSON.Feature<G, P> {
     return turf.feature(this.geometry, properties, {
