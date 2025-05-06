@@ -10,7 +10,7 @@ export type Ring = Ring2D | Ring3D
 export type Ring2D = Coordinate2D[]
 export type Ring3D = Coordinate3D[]
 
-export type coordinates<G extends SupportedGeometry, Flat extends true | undefined> =
+export type coordinates<G extends SupportedGeometry, Flat extends boolean> =
   Flat extends true
     ? ensureCoordinate2D<G['coordinates']>
     : ensureCoordinate<G['coordinates']>

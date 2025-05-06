@@ -2,6 +2,7 @@ import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import { isPlainObject, objectEquals } from 'ytil'
+
 import { BBox } from './BBox'
 import {
   Coordinate,
@@ -12,7 +13,7 @@ import {
   SupportedGeometry,
 } from './types'
 
-export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends true | undefined = undefined> {
+export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends boolean = boolean> {
 
   public constructor(
     public readonly geometry: G
