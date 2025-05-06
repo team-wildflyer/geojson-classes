@@ -1,7 +1,6 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
 import { arrayEquals, memoized } from 'ytil'
-
 import { Geometry } from './Geometry'
 
 /**
