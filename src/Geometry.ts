@@ -4,15 +4,27 @@ import { isArray } from 'lodash'
 import { isPlainObject, objectEquals } from 'ytil'
 
 import { BBox } from './BBox'
-import { Coordinate, ensureCoordinate, ensureCoordinate2D, Ring } from './types'
+import { Coordinate, coordinates, ensureCoordinate2D, Ring, SupportedGeometry } from './types'
 
-export type SupportedGeometry = Point | Polygon | MultiPolygon
-
-export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
+export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends boolean = false> {
 
   public constructor(
     public readonly geometry: G
   ) {}
+
+  public static isGeometry<G extends SupportedGeometry>(input: any, type?: G['type']): input is Geometry<G> {
+    if (!(input instanceof Geometry)) { return false }
+    if (type != null && input.type !== type) { return false }
+    return true
+  }
+
+  public static from<G extends SupportedGeometry>(input: Geometry<G> | G): Geometry<G> {
+    if (input instanceof Geometry) {
+      return input
+    } else {
+      return new Geometry(input)
+    }
+  }
 
   public static point(point: Geometry<Point> | Point | Coordinate): Geometry<Point>
   public static point(lng: number, lat: number, elevation?: number): Geometry<Point>
@@ -45,12 +57,12 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
     })
   }
 
-  public get type() {
+  public get type(): G['type'] {
     return this.geometry.type
   }
 
-  public get coordinates() {
-    return this.geometry.coordinates as ensureCoordinate<G['coordinates']>
+  public get coordinates(): coordinates<this> {
+    return this.geometry.coordinates as coordinates<this>
   }
 
   public get coordinates2D() {
@@ -64,28 +76,10 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
     }
   }
 
-  public get polygons(): Geometry<Polygon>[] {
-    switch (this.geometry.type) {
-    case 'Point':
-      return [new Geometry({
-        type:        'Polygon',
-        coordinates: [[[
-          this.geometry.coordinates[0],
-          this.geometry.coordinates[1],
-        ]]],
-      })]
-
-    case 'Polygon':
-      return [
-        new Geometry<Polygon>(this.geometry),
-      ]
-
-    case 'MultiPolygon':
-      return this.geometry.coordinates.map(coordinates => new Geometry({
-        type: 'Polygon',
-        coordinates,
-      }))
-    }
+  public flat(): Geometry<G, true> {
+    const coordinates = this.coordinates2D
+    const geometry = {type: this.type, coordinates} as SupportedGeometry as G
+    return new Geometry(geometry) as Geometry<G, true>
   }
 
   public get center(): Geometry<Point> {
@@ -98,6 +92,13 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry> {
 
   public get bbox(): BBox {
     return BBox.around(this)
+  }
+
+  public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id, bbox?: boolean} = {}): GeoJSON.Feature<G, P> {
+    return turf.feature(this.geometry, properties, {
+      bbox: options.bbox ? this.bbox.bbox : undefined,
+      id:   options.id,
+    })
   }
 
   public toMultiPolygon(this: Geometry<Polygon>): Geometry<MultiPolygon> {

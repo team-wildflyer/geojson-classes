@@ -3,12 +3,10 @@ import { Point, Polygon } from 'geojson'
 import { arrayEquals, memoized } from 'ytil'
 
 import { Geometry } from './Geometry'
-import { FlatBBox } from './types'
 
 /**
  * Utility wrapper for GeoJSON BBox.
- * 
- * Note: this BBox is always 2d, meaning that any elevation values are ignored.
+ * Note: this BBox is always flat, meaning that any elevation values are ignored.
  */
 export class BBox {
 
@@ -256,7 +254,7 @@ export class BBox {
 
 export type BBoxLike = BBox | GeoJSON.BBox
 
-export function ensureBBox2D(bbox: GeoJSON.BBox): FlatBBox {
+function ensureBBox2D(bbox: GeoJSON.BBox): [number, number, number, number] {
   if (bbox.length === 4) {
     return bbox
   } else {
