@@ -1,7 +1,6 @@
 
 
 import { memoized } from 'ytil'
-
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { SupportedGeometry } from './types'
@@ -36,13 +35,13 @@ export class FeatureCollection<G extends SupportedGeometry, P extends GeoJSON.Ge
   }
 
   public get bbox() {
-    return BBox.around(this.features.map(it => it.geometry))
+    return BBox.around(...this.features.map(it => it.geometry))
   }
 
   @memoized
   public get geoJSON(): GeoJSON.FeatureCollection<G, P> {
     return {
-      type: 'FeatureCollection',
+      type:     'FeatureCollection',
       features: this.features.map(it => it.geoJSON),
     }
   }

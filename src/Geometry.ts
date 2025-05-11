@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
+import { isArray } from 'lodash'
 import { arrayEquals, memoized } from 'ytil'
-
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
@@ -27,11 +27,15 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     }
   }
 
-  public static point(coordinate: Coordinate): Geometry<Point>
+  public static point(coordinate: number[]): Geometry<Point>
   public static point(lng: number, lat: number, elevation: number): Geometry<Point, false>
   public static point(lng: number, lat: number): Geometry<Point, true>
   public static point(lng: number, lat: number, elevation?: number): Geometry<Point, boolean>
   public static point(...args: any[]): Geometry<Point> {
+    if (args.length === 1 && isArray(args[0]) && args[0].length < 2) {
+      throw new Error('Invalid coordinates')
+    }
+
     if (args.length === 1) {
       const [lng, lat, elevation] = args[0]
       return new Geometry('Point', elevation == null ? [lng, lat] : [lng, lat, elevation])
