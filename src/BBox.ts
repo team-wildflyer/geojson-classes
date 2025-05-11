@@ -58,7 +58,7 @@ export class BBox {
     return new BBox([0, 0, 0, 0])
   }
 
-  public static fromVectorTile(z: number, x: number, y: number) {
+  public static fromTile(z: number, x: number, y: number) {
     const raw = tileToBBOX(x, y, z) as GeoJSON.BBox
     return new BBox(raw)
   }
