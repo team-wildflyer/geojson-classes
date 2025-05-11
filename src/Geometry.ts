@@ -1,63 +1,52 @@
 import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
-import { isArray } from 'lodash'
-import { isPlainObject, objectEquals } from 'ytil'
+import { arrayEquals, memoized } from 'ytil'
 
 import { BBox } from './BBox'
-import {
-  Coordinate,
-  Coordinate2D,
-  coordinates,
-  ensureCoordinate2D,
-  Ring,
-  SupportedGeometry,
-} from './types'
+import { Feature } from './Feature'
+import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
 
 export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat extends boolean = boolean> {
 
   public constructor(
-    public readonly geometry: G
-  ) {}
-
-  // #region Factory
-
-  public static from<G extends SupportedGeometry>(input: Geometry<G> | G): Geometry<G> {
-    if (input instanceof Geometry) {
-      return input
-    } else {
-      return new Geometry(input)
+    public readonly type: G['type'],
+    public readonly coordinates: coordinates<G, Flat>
+  ) {
+    if (!supportedGeometryTypes.includes(type)) {
+      throw new Error(`Unsupported geometry type: ${type}`)
     }
   }
 
-  public static point(point: Geometry<Point> | Point | Coordinate): Geometry<Point>
-  public static point(lng: number, lat: number, elevation?: number): Geometry<Point>
+  // #region Factory
+
+  public static from<G extends SupportedGeometry, Flat extends boolean = boolean>(input: Geometry<G, Flat> | G): Geometry<G, Flat> {
+    if (input instanceof Geometry) {
+      return input
+    } else {
+      return new Geometry(input.type, input.coordinates as coordinates<G, Flat>)
+    }
+  }
+
+  public static point(coordinate: Coordinate): Geometry<Point>
+  public static point(lng: number, lat: number, elevation: number): Geometry<Point, false>
+  public static point(lng: number, lat: number): Geometry<Point, true>
+  public static point(lng: number, lat: number, elevation?: number): Geometry<Point, boolean>
   public static point(...args: any[]): Geometry<Point> {
-    if (args.length === 1 && args[0] instanceof Geometry) {
-      const [lng, lat, elevation] = args[0].geometry.coordinates
-      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
-    } else if (args.length === 1 && isPlainObject(args[0]) && args[0].type === 'Point') {
-      return new Geometry(args[0] as unknown as Point)
-    } else if (args.length === 1 && isArray(args[0])) {
+    if (args.length === 1) {
       const [lng, lat, elevation] = args[0]
-      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
+      return new Geometry('Point', elevation == null ? [lng, lat] : [lng, lat, elevation])
     } else {
       const [lng, lat, elevation] = args
-      return new Geometry(turf.point(elevation == null ? [lng, lat] : [lng, lat, elevation]).geometry)
+      return new Geometry('Point', elevation == null ? [lng, lat] : [lng, lat, elevation])
     }
   }
 
   public static polygon(coordinates: Ring[]) {
-    return new Geometry({
-      type: 'Polygon',
-      coordinates,
-    })
+    return new Geometry<Polygon>('Polygon', coordinates)
   }
 
   public static multiPolygon(coordinates: Ring[][]) {
-    return new Geometry({
-      type: 'MultiPolygon',
-      coordinates,
-    })
+    return new Geometry<MultiPolygon>('MultiPolygon', coordinates)
   }
 
   // #endregion
@@ -73,39 +62,50 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   // #endregion
 
   // #region Properties
-
-  public get type(): G['type'] {
-    return this.geometry.type
-  }
   
+  @memoized
   public get center(): Geometry<Point> {
-    return Geometry.point(turf.center(this.geometry).geometry)
+    return Geometry.from(turf.center(this.geoJSON).geometry)
   }
   
+  @memoized
   public get centroid(): Geometry<Point> {
-    return Geometry.point(turf.centroid(this.geometry).geometry)
+    return Geometry.from(turf.centroid(this.geoJSON).geometry)
   }
   
+  @memoized
   public get bbox(): BBox {
     return BBox.around(this)
   }
   
   // #endregion
 
-  // #region Coordinates
+  // #region Testers
 
-  public get coordinates(): coordinates<G, Flat> {
-    return this.geometry.coordinates as coordinates<G, Flat>
+  public isPoint(): this is Geometry<GeoJSON.Point, Flat> {
+    return this.type === 'Point'
   }
+
+  public isPolygon(): this is Geometry<GeoJSON.Polygon, Flat> {
+    return this.type === 'Polygon'
+  }
+
+  public isMultiPolygon(): this is Geometry<GeoJSON.MultiPolygon, Flat> {
+    return this.type === 'MultiPolygon'
+  }
+
+  // #endregion
+
+  // #region Coordinates
 
   public get allCoordinates(): Array<Flat extends true ? Coordinate2D : Coordinate> {
     return Array.from(this.eachCoordinate())
   }
 
   private *eachCoordinate(): Generator<Flat extends true ? Coordinate2D : Coordinate> {
-    switch (this.geometry.type) {
+    switch (this.type) {
     case 'Point':
-      yield (this as Geometry<Point>).geometry.coordinates as Flat extends true ? Coordinate2D : Coordinate
+      yield (this as Geometry<Point>).coordinates as Flat extends true ? Coordinate2D : Coordinate
       break
     case 'Polygon':
       for (const ring of (this as Geometry<Polygon>).coordinates) {
@@ -126,77 +126,103 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     }
   }
 
-  public isFlat(): Flat extends true ? true : boolean {
+  public isFlat(): this is Geometry<G, true> {
     const isFlat = this.allCoordinates[0].length === 2
     return isFlat as Flat extends true ? true : boolean
   }
 
   public flat(): Geometry<G, true> {
-    const coordinates2D = (() => {
-      switch (this.geometry.type) {
-      case 'Point':
-        return (this as Geometry<Point>).coordinates.slice(0, 2) as ensureCoordinate2D<G['coordinates']>
-      case 'Polygon':
-        return (this as Geometry<Polygon>).coordinates.map(ring => ring.map(coordinate => coordinate.slice(0, 2))) as ensureCoordinate2D<G['coordinates']>
-      case 'MultiPolygon':
-        return (this as Geometry<MultiPolygon>).coordinates.map(polygon => polygon.map(ring => ring.map(coordinate => coordinate.slice(0, 2)))) as ensureCoordinate2D<G['coordinates']>
-      }
-    })()
-  
-    const geometry = {
-      type:        this.type,
-      coordinates: coordinates2D,
-    } as SupportedGeometry as G
-    return new Geometry(geometry) as Geometry<G, true>
+    if (this.isFlat()) {
+      return this as Geometry<G, true>
+    } else {
+      return this.map(coordinate => coordinate.slice(0, 2)) as Geometry<G, true>
+    }
+  }
+
+  public elevated(): Geometry<G, false> {
+    if (this.isFlat()) {
+      return this.map(coordinate => [...coordinate, 0]) as Geometry<G, false>
+    } else {
+      return this as Geometry<G, false>
+    }
   }
 
   // #endregion
 
-  public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id, bbox?: boolean} = {}): GeoJSON.Feature<G, P> {
-    return turf.feature(this.geometry, properties, {
-      bbox: options.bbox ? this.bbox.bbox : undefined,
-      id:   options.id,
-    })
+  @memoized
+  public get geoJSON(): G {
+    return {
+      type:        this.type,
+      coordinates: this.coordinates as G['coordinates'],
+    } as G
   }
 
-  public toMultiPolygon(this: Geometry<Polygon>): Geometry<MultiPolygon> {
+  public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id} = {}): Feature<G, P> {
+    return new Feature(this, properties, options.id)
+  }
+
+  public toMultiPolygon<Flat extends boolean>(this: Geometry<Polygon, Flat>): Geometry<MultiPolygon, Flat> {
     return Geometry.multiPolygon([this.coordinates])
   }
 
   public get searchParam() {
-    if (this.geometry.type === 'Point') {
+    if (this.type === 'Point') {
       return `${this.center.coordinates[0]},${this.center.coordinates[1]}`
     } else {
-      return turf.coordAll(this.geometry).map(([x, y]) => `${x},${y}`).join(';')
+      return this.allCoordinates.map(([x, y]) => `${x},${y}`).join(';')
     }
   }
 
   public transpose(): Geometry {
-    switch (this.geometry.type) {
-    case 'Point':
-      return new Geometry({
-        type:        'Point',
-        coordinates: [this.geometry.coordinates[1], this.geometry.coordinates[0], this.geometry.coordinates[2]],
-      })
-    case 'Polygon':
-      return new Geometry({
-        type:        'Polygon',
-        coordinates: this.geometry.coordinates.map(ring => ring.map(([x, y, elevation]) => [y, x, elevation])),
-      })
-    case 'MultiPolygon':
-      return new Geometry({
-        type:        'MultiPolygon',
-        coordinates: this.geometry.coordinates.map(polygon => polygon.map(ring => ring.map(([x, y, elevation]) => [y, x, elevation]))),
-      })
+    return this.map(coordinate => coordinate.length === 2
+      ? [coordinate[1], coordinate[0]]
+      : [coordinate[1], coordinate[0], coordinate[2]]
+    )
+  }
+
+  public map(fn: (coordinate: coordinate<Flat>) => number[]): Geometry<G, Flat> {
+    const flat = this.isFlat()
+    const mapCoords = (prev: coordinate<Flat>): coordinate<Flat> => {
+      const next = fn(prev)
+      if (flat) {
+        return next.slice(0, 2) as coordinate<Flat>
+      } else if (next.length >= 3) {
+        return next.slice(0, 3) as coordinate<Flat>
+      } else {
+        return [...next, 0] as coordinate<Flat>
+      }
+    }
+
+    if (this.isPoint()) {
+      const prev = this.coordinates as coordinate<Flat>
+      const next = mapCoords(prev) as coordinates<Point, Flat>
+      return new Geometry<Point, Flat>('Point', next) as Geometry<G, Flat>
+    } else if (this.isPolygon()) {
+      const prev = this.coordinates as coordinate<Flat>[][]
+      const next = prev.map(coords => coords.map(mapCoords)) as coordinate<Flat>[][]
+      return new Geometry<Polygon, Flat>('Polygon', next as coordinates<Polygon, Flat>) as Geometry<G, Flat>
+    } else if (this.isMultiPolygon()) {
+      const prev = this.coordinates as coordinate<Flat>[][][]
+      const next = prev.map(ring => ring.map(coords => coords.map(mapCoords))) as coordinate<Flat>[][][]
+      return new Geometry<MultiPolygon, Flat>('MultiPolygon', next as coordinates<MultiPolygon, Flat>) as Geometry<G, Flat>
+    } else {
+      throw new Error(`Unsupported geometry type: ${this.type}`) // Will not happen.
     }
   }
 
   public equals(other: Geometry): boolean {
-    return objectEquals(this.geometry, other.geometry)
+    if (this.type !== other.type) { return false }
+    return arrayEquals(this.allCoordinates, other.allCoordinates)
   }
 
   public intersects(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
-    return turf.booleanIntersects(this.geometry, other.geometry)
+    return turf.booleanIntersects(this.geoJSON, other.geoJSON)
   }
 
 }
+
+const supportedGeometryTypes = [
+  'Point',
+  'Polygon',
+  'MultiPolygon',
+]
