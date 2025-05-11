@@ -1,3 +1,6 @@
+export * from './BBox.test'
 export * from './BBox'
+export * from './Feature'
+export * from './FeatureCollection'
 export * from './Geometry'
 export * from './types'

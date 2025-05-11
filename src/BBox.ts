@@ -1,7 +1,9 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
 import { arrayEquals, memoized } from 'ytil'
+
 import { Geometry } from './Geometry'
+import { SupportedGeometry } from './types'
 
 /**
  * Utility wrapper for GeoJSON BBox.
@@ -61,10 +63,10 @@ export class BBox {
     return new BBox(raw)
   }
 
-  public static around(...geometries: Array<Geometry | GeoJSON.Geometry>) {
-    const features = geometries.map(g => turf.feature(g instanceof Geometry ? g.geometry : g))
-    const collection = turf.featureCollection(features)
-    const bbox = turf.bbox(collection)
+  public static around(...geometries: Array<Geometry | SupportedGeometry>) {
+    const geoJSON = geometries.map(it => it instanceof Geometry ? it.geoJSON : it)
+    const features = geoJSON.map(it => turf.feature(it))
+    const bbox = turf.bbox(turf.featureCollection(features))
     return new BBox(bbox)
   }
 
@@ -136,7 +138,7 @@ export class BBox {
 
   @memoized
   public get polygon(): Geometry<Polygon> {
-    return new Geometry(turf.bboxPolygon(this.bbox).geometry)
+    return Geometry.from(turf.bboxPolygon(this.bbox).geometry)
   }
 
   // #endregion

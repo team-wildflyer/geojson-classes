@@ -1,5 +1,7 @@
 import { MultiPolygon, Point, Polygon } from 'geojson'
 
+export type { MultiPolygon, Point, Polygon }
+
 export type SupportedGeometry = Point | Polygon | MultiPolygon
 
 export type Coordinate = Coordinate2D | Coordinate3D
@@ -9,6 +11,8 @@ export type Coordinate3D = [number, number, number]
 export type Ring = Ring2D | Ring3D
 export type Ring2D = Coordinate2D[]
 export type Ring3D = Coordinate3D[]
+
+export type coordinate<Flat extends boolean> = Flat extends true ? Coordinate2D : Coordinate3D
 
 export type coordinates<G extends SupportedGeometry, Flat extends boolean> =
   Flat extends true
