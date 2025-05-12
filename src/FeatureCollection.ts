@@ -1,15 +1,20 @@
 
 
-import { memoized } from 'ytil'
+
+
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { SupportedGeometry } from './types'
 
-export class FeatureCollection<G extends SupportedGeometry, P extends GeoJSON.GeoJsonProperties = any> {
+export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, P extends GeoJSON.GeoJsonProperties = any> {
 
   constructor(
     public readonly features: Feature<G, P>[],
   ) {}
+
+  public clone() {
+    return new FeatureCollection<G, P>(this.features)
+  }
 
   public static from<G extends SupportedGeometry, P extends GeoJSON.GeoJsonProperties = any>(collection: FeatureCollection<G, P> | GeoJSON.FeatureCollection<G, P>) {
     if (collection instanceof FeatureCollection) {
@@ -34,20 +39,42 @@ export class FeatureCollection<G extends SupportedGeometry, P extends GeoJSON.Ge
     return this.features.length
   }
 
+  public [Symbol.iterator]() {
+    return this.features[Symbol.iterator]()
+  }
+
+  public add(...features: Array<Feature<G, P> | GeoJSON.Feature<G, P>>) {
+    this.features.push(...features.map(it => it instanceof Feature ? it : Feature.from(it)))
+  }
+
+  public addFrom(collection: FeatureCollection<G, P> | GeoJSON.FeatureCollection<G, P>) {
+    if (collection instanceof FeatureCollection) {
+      this.features.push(...collection.features)
+    } else {
+      this.features.push(...collection.features.map(it => Feature.from(it)))
+    }
+  }
+
+  public removeAt(index: number) {
+    if (index < 0 || index >= this.features.length) {
+      throw new Error(`Index out of bounds: ${index}`)
+    }
+    this.features.splice(index, 1)
+  }
+
+  public clear() {
+    this.features.splice(0)
+  }
+
   public get bbox() {
     return BBox.around(...this.features.map(it => it.geometry))
   }
 
-  @memoized
   public get geoJSON(): GeoJSON.FeatureCollection<G, P> {
     return {
       type:     'FeatureCollection',
       features: this.features.map(it => it.geoJSON),
     }
-  }
-
-  public [Symbol.iterator]() {
-    return this.features[Symbol.iterator]()
   }
 
 }

@@ -12,6 +12,12 @@ export type Ring = Ring2D | Ring3D
 export type Ring2D = Coordinate2D[]
 export type Ring3D = Coordinate3D[]
 
+export interface TileCoordinates {
+  z: number
+  x: number
+  y: number
+}
+
 export type coordinate<Flat extends boolean> = Flat extends true ? Coordinate2D : Coordinate3D
 
 export type coordinates<G extends SupportedGeometry, Flat extends boolean> =
