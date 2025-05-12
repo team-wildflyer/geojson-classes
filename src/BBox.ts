@@ -3,7 +3,7 @@ import { Point, Polygon } from 'geojson'
 import { arrayEquals, memoized } from 'ytil'
 
 import { Geometry } from './Geometry'
-import { SupportedGeometry } from './types'
+import { SupportedGeometry, TileCoordinates } from './types'
 
 /**
  * Utility wrapper for GeoJSON BBox.
@@ -58,7 +58,12 @@ export class BBox {
     return new BBox([0, 0, 0, 0])
   }
 
-  public static fromTile(z: number, x: number, y: number) {
+  public static fromTileCoords(coords: TileCoordinates): BBox
+  public static fromTileCoords(z: number, x: number, y: number): BBox
+  public static fromTileCoords(...args: any[]) {
+    const [z, x, y] = args.length === 1
+      ? [args[0].z, args[0].x, args[0].y]
+      : args
     const raw = tileToBBOX(x, y, z) as GeoJSON.BBox
     return new BBox(raw)
   }
