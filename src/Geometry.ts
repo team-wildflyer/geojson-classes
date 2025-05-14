@@ -2,6 +2,7 @@ import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import { arrayEquals, memoized } from 'ytil'
+
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
@@ -184,6 +185,18 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     )
   }
 
+  public intersect(this: Geometry<Polygon | MultiPolygon>, geometry: Geometry<Polygon | MultiPolygon>): Geometry | null {
+    const features = turf.featureCollection([
+      turf.feature(this.geoJSON),
+      turf.feature(geometry.geoJSON)
+    ])
+    
+    const intersection = turf.intersect(features)
+    if (intersection == null) { return null }
+
+    return Geometry.from(intersection.geometry)
+  }
+
   public map(fn: (coordinate: coordinate<Flat>) => number[]): Geometry<G, Flat> {
     const flat = this.isFlat()
     const mapCoords = (prev: coordinate<Flat>): coordinate<Flat> => {
@@ -217,6 +230,14 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   public equals(other: Geometry): boolean {
     if (this.type !== other.type) { return false }
     return arrayEquals(this.allCoordinates, other.allCoordinates)
+  }
+
+  public contains(this: Geometry<Polygon | MultiPolygon>, other: Geometry): boolean {
+    return turf.booleanContains(this.geoJSON, other.geoJSON)
+  }
+
+  public within(other: Geometry<Polygon | MultiPolygon>): boolean {
+    return turf.booleanWithin(this.geoJSON, other.geoJSON)
   }
 
   public intersects(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {

@@ -2,9 +2,12 @@
 
 
 
+import { sparse } from 'ytil'
+
 import { BBox } from './BBox'
 import { Feature } from './Feature'
-import { SupportedGeometry } from './types'
+import { Geometry } from './Geometry'
+import { MultiPolygon, Polygon, SupportedGeometry } from './types'
 
 export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, P extends GeoJSON.GeoJsonProperties = any> {
 
@@ -64,6 +67,35 @@ export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, 
 
   public clear() {
     this.features.splice(0)
+  }
+
+  public clip(geometry: Geometry<Polygon | MultiPolygon>) {
+    const nextGeometries = this.features.map(feature => {
+      if (feature.isPoint()) {
+        return feature.geometry.within(geometry) ? feature : null
+      } else if (feature.isPolygon() || feature.isMultiPolygon()) {
+        return feature.intersect(geometry)
+      } else {
+        return null
+      }
+    })
+
+    return FeatureCollection.of(sparse(nextGeometries))
+  }
+
+  public map<GG extends SupportedGeometry, PP extends GeoJSON.GeoJsonProperties>(fn: (feature: Feature<G, P>) => Feature<GG, PP>): FeatureCollection<GG, PP> {
+    return new FeatureCollection<GG, PP>(
+      this.features.map(fn)
+    )
+  }
+
+
+  public mapGeometries<GG extends Geometry>(fn: (geometry: Geometry) => GG) {
+    return this.map(it => it.cloneWithGeometry(fn(it.geometry)))
+  }
+
+  public mapProperties<PP extends GeoJSON.GeoJsonProperties>(fn: (properties: P) => PP) {
+    return this.map(it => it.cloneWithProperties(fn(it.properties)))
   }
 
   public get bbox() {
