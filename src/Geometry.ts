@@ -68,19 +68,19 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region Properties
   
-  @memoized
-  public get center(): Geometry<Point> {
-    return Geometry.from(turf.center(this.geoJSON).geometry)
+  private _center: Geometry<Point> | undefined
+  public center(): Geometry<Point> {
+    return this._center ??= Geometry.from(turf.center(this.geoJSON).geometry)
   }
   
-  @memoized
-  public get centroid(): Geometry<Point> {
-    return Geometry.from(turf.centroid(this.geoJSON).geometry)
+  private _centroid: Geometry<Point> | undefined
+  public centroid(): Geometry<Point> {
+    return this._centroid ??= Geometry.from(turf.centroid(this.geoJSON).geometry)
   }
   
-  @memoized
-  public get bbox(): BBox {
-    return BBox.around(this)
+  private _bbox: BBox | undefined
+  public bbox(): BBox {
+    return this._bbox ??= BBox.around(this)
   }
   
   // #endregion
@@ -172,7 +172,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   public get searchParam() {
     if (this.type === 'Point') {
-      return `${this.center.coordinates[0]},${this.center.coordinates[1]}`
+      return `${this.center().coordinates[0]},${this.center().coordinates[1]}`
     } else {
       return this.allCoordinates.map(([x, y]) => `${x},${y}`).join(';')
     }
