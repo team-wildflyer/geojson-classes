@@ -69,8 +69,8 @@ export class BBox {
   }
 
   public static around(...geometries: Array<Geometry | SupportedGeometry>) {
-    const geoJSON = geometries.map(it => it instanceof Geometry ? it.geoJSON : it)
-    const features = geoJSON.map(it => turf.feature(it))
+    const geojson = geometries.map(it => it instanceof Geometry ? it.geojson : it)
+    const features = geojson.map(it => turf.feature(it))
     const bbox = turf.bbox(turf.featureCollection(features))
     return new BBox(bbox)
   }

@@ -102,10 +102,10 @@ export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, 
     return BBox.around(...this.features.map(it => it.geometry))
   }
 
-  public get geoJSON(): GeoJSON.FeatureCollection<G, P> {
+  public get geojson(): GeoJSON.FeatureCollection<G, P> {
     return {
       type:     'FeatureCollection',
-      features: this.features.map(it => it.geoJSON),
+      features: this.features.map(it => it.geojson),
     }
   }
 

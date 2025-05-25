@@ -76,10 +76,10 @@ export class Feature<G extends SupportedGeometry, P extends GeoJSON.GeoJsonPrope
   }
 
   @memoized
-  public get geoJSON(): GeoJSON.Feature<G, P> {
+  public get geojson(): GeoJSON.Feature<G, P> {
     return {
       type: 'Feature',
-      geometry: this.geometry.geoJSON,
+      geometry: this.geometry.geojson,
       properties: this.properties,
       id: this.id,
     } 
