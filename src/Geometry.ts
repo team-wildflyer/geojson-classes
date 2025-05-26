@@ -147,7 +147,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     if (this.isFlat()) {
       return this as Geometry<G, true>
     } else {
-      return this.map(coordinate => coordinate.slice(0, 2)) as Geometry<G, true>
+      return this.map(coordinate => coordinate.slice(0, 2), false) as Geometry<G, true>
     }
   }
 
@@ -210,10 +210,11 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return Geometry.from(intersection.geometry)
   }
 
-  public map(fn: (coordinate: coordinate<Flat>) => number[]): Geometry<G, Flat> {
+  public map(fn: (coordinate: coordinate<Flat>) => number[], flatten: boolean = true): Geometry<G, Flat> {
     const flat = this.isFlat()
     const mapCoords = (prev: coordinate<Flat>): coordinate<Flat> => {
       const next = fn(prev)
+      if (!flatten) { return next as coordinate<Flat> }
       if (flat) {
         return next.slice(0, 2) as coordinate<Flat>
       } else if (next.length >= 3) {
