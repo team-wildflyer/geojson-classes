@@ -19,7 +19,6 @@
     "@turf/turf": "^7.1.0",
     "@types/geojson": "^7946.0.14",
     "geojson": "^0.5.0",
-    "semaphore": "workspace:^",
     "ytil": "workspace:^"
   },
   "devDependencies": {
