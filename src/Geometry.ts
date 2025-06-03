@@ -1,7 +1,9 @@
 import * as turf from '@turf/turf'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
+import * as wkx from 'wkx'
 import { arrayEquals, memoized } from 'ytil'
+
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
@@ -19,9 +21,15 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region Factory
 
-  public static from<G extends SupportedGeometry, Flat extends boolean = boolean>(input: Geometry<G, Flat> | G): Geometry<G, Flat> {
+  public static from<G extends SupportedGeometry, Flat extends boolean = boolean>(input: Geometry<G, Flat> | G | Buffer): Geometry<G, Flat> {
     if (input instanceof Geometry) {
       return input
+    } else if (input instanceof Buffer) {
+      const geojson = wkx.Geometry.parse(input).toGeoJSON() as G
+      if (!supportedGeometryTypes.includes(geojson.type)) {
+        throw new Error(`Unsupported geometry type: ${geojson.type}`)
+      }
+      return new Geometry(geojson.type, geojson.coordinates as coordinates<G, Flat>)
     } else {
       return new Geometry(input.type, input.coordinates as coordinates<G, Flat>)
     }
@@ -67,19 +75,19 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region Properties
   
-  @memoized
-  public get center(): Geometry<Point> {
-    return Geometry.from(turf.center(this.geoJSON).geometry)
+  private _center: Geometry<Point> | undefined
+  public center(): Geometry<Point> {
+    return this._center ??= Geometry.from(turf.center(this.geojson).geometry)
   }
   
-  @memoized
-  public get centroid(): Geometry<Point> {
-    return Geometry.from(turf.centroid(this.geoJSON).geometry)
+  private _centroid: Geometry<Point> | undefined
+  public centroid(): Geometry<Point> {
+    return this._centroid ??= Geometry.from(turf.centroid(this.geojson).geometry)
   }
   
-  @memoized
-  public get bbox(): BBox {
-    return BBox.around(this)
+  private _bbox: BBox | undefined
+  public bbox(): BBox {
+    return this._bbox ??= BBox.around(this)
   }
   
   // #endregion
@@ -139,7 +147,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     if (this.isFlat()) {
       return this as Geometry<G, true>
     } else {
-      return this.map(coordinate => coordinate.slice(0, 2)) as Geometry<G, true>
+      return this.map(coordinate => coordinate.slice(0, 2), false) as Geometry<G, true>
     }
   }
 
@@ -154,11 +162,17 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   // #endregion
 
   @memoized
-  public get geoJSON(): G {
+  public get geojson(): G {
     return {
       type:        this.type,
       coordinates: this.coordinates as G['coordinates'],
     } as G
+  }
+
+  @memoized
+  public get wkb() {
+    const wkxGeometry = wkx.Geometry.parseGeoJSON(this.geojson)
+    return wkxGeometry.toWkb()
   }
 
   public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id} = {}): Feature<G, P> {
@@ -171,7 +185,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   public get searchParam() {
     if (this.type === 'Point') {
-      return `${this.center.coordinates[0]},${this.center.coordinates[1]}`
+      return `${this.center().coordinates[0]},${this.center().coordinates[1]}`
     } else {
       return this.allCoordinates.map(([x, y]) => `${x},${y}`).join(';')
     }
@@ -184,10 +198,23 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     )
   }
 
-  public map(fn: (coordinate: coordinate<Flat>) => number[]): Geometry<G, Flat> {
+  public intersect(this: Geometry<Polygon | MultiPolygon>, geometry: Geometry<Polygon | MultiPolygon>): Geometry | null {
+    const features = turf.featureCollection([
+      turf.feature(this.geojson),
+      turf.feature(geometry.geojson)
+    ])
+    
+    const intersection = turf.intersect(features)
+    if (intersection == null) { return null }
+
+    return Geometry.from(intersection.geometry)
+  }
+
+  public map(fn: (coordinate: coordinate<Flat>) => number[], flatten: boolean = true): Geometry<G, Flat> {
     const flat = this.isFlat()
     const mapCoords = (prev: coordinate<Flat>): coordinate<Flat> => {
       const next = fn(prev)
+      if (!flatten) { return next as coordinate<Flat> }
       if (flat) {
         return next.slice(0, 2) as coordinate<Flat>
       } else if (next.length >= 3) {
@@ -219,8 +246,16 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return arrayEquals(this.allCoordinates, other.allCoordinates)
   }
 
+  public contains(this: Geometry<Polygon | MultiPolygon>, other: Geometry): boolean {
+    return turf.booleanContains(this.geojson, other.geojson)
+  }
+
+  public within(other: Geometry<Polygon | MultiPolygon>): boolean {
+    return turf.booleanWithin(this.geojson, other.geojson)
+  }
+
   public intersects(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
-    return turf.booleanIntersects(this.geoJSON, other.geoJSON)
+    return turf.booleanIntersects(this.geojson, other.geojson)
   }
 
 }

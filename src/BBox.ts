@@ -1,6 +1,6 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
-import { arrayEquals, memoized } from 'ytil'
+import { arrayEquals } from 'ytil'
 import { Geometry } from './Geometry'
 import { SupportedGeometry, TileCoordinates } from './types'
 
@@ -79,8 +79,8 @@ export class BBox {
   }
 
   public static around(...geometries: Array<Geometry | SupportedGeometry>) {
-    const geoJSON = geometries.map(it => it instanceof Geometry ? it.geoJSON : it)
-    const features = geoJSON.map(it => turf.feature(it))
+    const geojson = geometries.map(it => it instanceof Geometry ? it.geojson : it)
+    const features = geojson.map(it => turf.feature(it))
     const bbox = turf.bbox(turf.featureCollection(features))
     return new BBox(bbox)
   }
@@ -144,16 +144,18 @@ export class BBox {
     return true    
   }
 
-  @memoized
-  public get center(): Geometry<Point> {
-    const lon = this.inverted ? (this.bbox[0] + this.bbox[2] + 360) / 2 : (this.bbox[0] + this.bbox[2]) / 2
-    const lat = (this.bbox[1] + this.bbox[3]) / 2
-    return Geometry.point(lon, lat)
+  private _center: Geometry<Point> | undefined
+  public center(): Geometry<Point> {
+    return this._center ??= (() => {
+      const lon = this.inverted ? (this.bbox[0] + this.bbox[2] + 360) / 2 : (this.bbox[0] + this.bbox[2]) / 2
+      const lat = (this.bbox[1] + this.bbox[3]) / 2
+      return Geometry.point(lon, lat)
+    })()
   }
 
-  @memoized
-  public get polygon(): Geometry<Polygon> {
-    return Geometry.from(turf.bboxPolygon(this.bbox).geometry)
+  private _polygon: Geometry<Polygon> | undefined
+  public polygon(): Geometry<Polygon> {
+    return this._polygon ??= Geometry.from(turf.bboxPolygon(this.bbox).geometry)
   }
 
   // #endregion
