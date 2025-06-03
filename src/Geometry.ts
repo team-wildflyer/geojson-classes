@@ -1,9 +1,9 @@
 import * as turf from '@turf/turf'
+import { Buffer } from 'buffer'
 import { MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import * as wkx from 'wkx'
 import { arrayEquals, memoized } from 'ytil'
-
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
@@ -201,7 +201,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   public intersect(this: Geometry<Polygon | MultiPolygon>, geometry: Geometry<Polygon | MultiPolygon>): Geometry | null {
     const features = turf.featureCollection([
       turf.feature(this.geojson),
-      turf.feature(geometry.geojson)
+      turf.feature(geometry.geojson),
     ])
     
     const intersection = turf.intersect(features)

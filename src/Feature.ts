@@ -1,5 +1,4 @@
 import { memoized } from 'ytil'
-
 import { BBox } from './BBox'
 import { Geometry } from './Geometry'
 import { MultiPolygon, Polygon, SupportedGeometry } from './types'
@@ -78,10 +77,10 @@ export class Feature<G extends SupportedGeometry, P extends GeoJSON.GeoJsonPrope
   @memoized
   public get geojson(): GeoJSON.Feature<G, P> {
     return {
-      type: 'Feature',
-      geometry: this.geometry.geojson,
+      type:       'Feature',
+      geometry:   this.geometry.geojson,
       properties: this.properties,
-      id: this.id,
+      id:         this.id,
     } 
   }
 
@@ -89,7 +88,7 @@ export class Feature<G extends SupportedGeometry, P extends GeoJSON.GeoJsonPrope
 
 export interface FeatureOptions {
   bbox?: BBox | GeoJSON.BBox
-  id?: string | number  
+  id?:   string | number  
 }
 
 export type FeatureWithProps<P extends GeoJSON.GeoJsonProperties> = Feature<SupportedGeometry, P>
