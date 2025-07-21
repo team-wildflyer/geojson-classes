@@ -1,6 +1,6 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
-import { arrayEquals } from 'ytil'
+import { arrayEquals, wrapArray } from 'ytil'
 
 import { Geometry } from './Geometry'
 import { SupportedGeometry, TileCoordinates } from './types'
@@ -68,7 +68,8 @@ export class BBox {
     return new BBox(raw)
   }
 
-  public static around(...geometries: Array<Geometry | SupportedGeometry>) {
+  public static around(input: Geometry | SupportedGeometry | Array<Geometry | SupportedGeometry>) {
+    const geometries = wrapArray(input)
     const geojson = geometries.map(it => it instanceof Geometry ? it.geojson : it)
     const features = geojson.map(it => turf.feature(it))
     const bbox = turf.bbox(turf.featureCollection(features))
