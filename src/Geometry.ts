@@ -169,6 +169,10 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return Geometry.multiPolygon([this.coordinates])
   }
 
+  public toMultiplePolygons<Flat extends boolean>(this: Geometry<MultiPolygon, Flat>): Array<Geometry<Polygon, Flat>> {
+    return this.coordinates.map(polygon => Geometry.polygon(polygon as Ring[]))
+  }
+
   public get searchParam() {
     if (this.type === 'Point') {
       return `${this.center().coordinates[0]},${this.center().coordinates[1]}`
@@ -242,6 +246,22 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   public intersects(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): boolean {
     return turf.booleanIntersects(this.geojson, other.geojson)
+  }
+
+  public merge(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): Geometry<MultiPolygon> {
+    const features = turf.featureCollection([
+      turf.feature(this.geojson),
+      turf.feature(other.geojson),
+    ])
+    
+    const merged = turf.union(features)
+    if (merged == null) { return Geometry.multiPolygon([]) }
+
+    if(merged.geometry.type === 'Polygon') {
+      return Geometry.from(merged.geometry).toMultiPolygon()
+    }
+
+    return Geometry.from(merged.geometry)
   }
 
 }
