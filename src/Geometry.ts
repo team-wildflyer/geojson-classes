@@ -31,7 +31,8 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
       }
       return new Geometry(geojson.type, geojson.coordinates as coordinates<G, Flat>)
     } else {
-      return new Geometry(input.type, input.coordinates as coordinates<G, Flat>)
+      const geom = input as G
+      return new Geometry(geom.type, geom.coordinates as coordinates<G, Flat>)
     }
   }
 
