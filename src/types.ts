@@ -2,7 +2,7 @@ import { MultiPolygon, Point, Polygon } from 'geojson'
 
 export type { MultiPolygon, Point, Polygon }
 
-export const SupportedGeoJSONTypes = ['Point', 'Polygon', 'MultiPolygon'] as const
+export const SupportedGeoJSONTypes = ['Point', 'MultiPoint', 'Polygon', 'MultiPolygon', 'LineString', 'MultiLineString'] as const
 export type SupportedGeoJSONType = (typeof SupportedGeoJSONTypes)[number]
 
 export function isSupportedGeoJSONType(type: string): type is SupportedGeoJSONType {

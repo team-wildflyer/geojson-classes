@@ -81,6 +81,36 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   public bbox(): BBox {
     return this._bbox ??= BBox.around(this)
   }
+
+  // #endregion
+
+  // #region dimensions
+
+  private _area: number | undefined
+  public get area(): number {
+    if (this._area == null) {
+      if (this.isPoint()) {
+        this._area = 0
+      } else if (this.isPolygon() || this.isMultiPolygon()) {
+        this._area = turf.area(this.geojson)
+      } else {
+        throw new Error(`Unsupported geometry type for area calculation: ${this.type}`)
+      }
+    }
+    return this._area
+  }
+
+  public get areaHa(): string {
+    const area = this.area
+    const ha = area / 10000
+    if (ha === 0) {
+      return '0 ha'
+    } else if (ha < 10) {
+      return `${(this.area / 10000).toFixed(1)} ha`
+    } else {
+      return `${(this.area / 10000).toFixed(0)} ha`
+    }
+  }
   
   // #endregion
 
