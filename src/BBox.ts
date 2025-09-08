@@ -14,6 +14,17 @@ export class BBox {
   constructor(bbox: GeoJSON.BBox) {
     this.bbox = ensureBBox2D(bbox)
 
+    if (this.bbox[0] > this.bbox[2]) {
+      let tmp = this.bbox[0]
+      this.bbox[0] = this.bbox[2]
+      this.bbox[2] = tmp
+    }
+    if (this.bbox[1] > this.bbox[3]) {
+      let tmp = this.bbox[1]
+      this.bbox[1] = this.bbox[3]
+      this.bbox[3] = tmp
+    }
+
     // Latitudes must be strictly increasing.
     if (this.lat1 > this.lat2) {
       throw new Error("Invalid bbox: lat1 > lat2")
