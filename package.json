@@ -5,25 +5,15 @@
   "author": "Joost Lubach",
   "private": false,
   "license": "MIT",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./src/index.ts",
   "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "default": "./dist/cjs/index.js"
-    }
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
   },
   "scripts": {
-    "build": "pnpm clean && pnpm build:tsc",
-    "build:tsc": "pnpm build:tsc:esm && pnpm build:tsc:cjs",
-    "build:tsc:esm": "tsc -p tsconfig.prod.json --module esnext --outDir dist/esm --declarationDir dist/types",
-    "build:tsc:cjs": "tsc -p tsconfig.prod.json --module commonjs --outDir dist/cjs --declaration false --declarationMap false",
-    "clean": "rimraf dist",
-    "lint": "eslint src --ext .ts",
-    "check": "tsc -p . --noEmit",
-    "test": "NODE_ENV=test jest"
+    "lint": "eslint src --ext ts,tsx",
+    "check": "tsc --noEmit",
+    "test": "bun run test"
   },
   "dependencies": {
     "@turf/turf": "^7.1.0",
@@ -36,11 +26,6 @@
     "ytil": "workspace:^"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/lodash": "^4.17.20",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.1.2",
-    "tsc-alias": "^1.8.8",
-    "typescript": "^5.9.2"
+    "@types/jest": "^29.5.14"
   }
 }
