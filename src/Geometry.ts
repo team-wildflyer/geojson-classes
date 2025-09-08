@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf'
-import { MultiPolygon, Point, Polygon } from 'geojson'
+import { MultiLineString, MultiPoint, MultiPolygon, Point, Polygon, LineString } from 'geojson'
 import { isArray } from 'lodash'
 import { arrayEquals, memoized } from 'ytil'
 import { BBox } from './BBox'
@@ -53,6 +53,18 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return new Geometry<MultiPolygon>('MultiPolygon', coordinates)
   }
 
+  public static multiPoint(coordinates: Array<Coordinate | Coordinate2D>) {
+    return new Geometry<MultiPoint>('MultiPoint', coordinates as any)
+  }
+
+  public static lineString(coordinates: Array<Coordinate | Coordinate2D>) {
+    return new Geometry<LineString>('LineString', coordinates as any)
+  }
+
+  public static multiLineString(coordinates: Array<Array<Coordinate | Coordinate2D>>) {
+    return new Geometry<MultiLineString>('MultiLineString', coordinates as any)
+  }
+
   // #endregion
 
   // #region Static methods
@@ -89,7 +101,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   private _area: number | undefined
   public get area(): number {
     if (this._area == null) {
-      if (this.isPoint()) {
+      if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
         this._area = 0
       } else if (this.isPolygon() || this.isMultiPolygon()) {
         this._area = turf.area(this.geojson)
@@ -106,9 +118,9 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     if (ha === 0) {
       return '0 ha'
     } else if (ha < 10) {
-      return `${(this.area / 10000).toFixed(1)} ha`
+      return `${(this.area / 10000).toFixed(1)}ha`
     } else {
-      return `${(this.area / 10000).toFixed(0)} ha`
+      return `${(this.area / 10000).toFixed(0)}ha`
     }
   }
   
@@ -128,6 +140,18 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return this.type === 'MultiPolygon'
   }
 
+  public isMultiPoint(): this is Geometry<GeoJSON.MultiPoint, Flat> {
+    return this.type === 'MultiPoint'
+  }
+
+  public isLineString(): this is Geometry<GeoJSON.LineString, Flat> {
+    return this.type === 'LineString'
+  }
+
+  public isMultiLineString(): this is Geometry<GeoJSON.MultiLineString, Flat> {
+    return this.type === 'MultiLineString'
+  }
+
   // #endregion
 
   // #region Coordinates
@@ -141,9 +165,26 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     case 'Point':
       yield (this as Geometry<Point>).coordinates as Flat extends true ? Coordinate2D : Coordinate
       break
+    case 'MultiPoint':
+      for (const coordinate of (this as Geometry<MultiPoint>).coordinates) {
+        yield coordinate as Flat extends true ? Coordinate2D : Coordinate
+      }
+      break
+    case 'LineString':
+      for (const coordinate of (this as Geometry<LineString>).coordinates) {
+        yield coordinate as Flat extends true ? Coordinate2D : Coordinate
+      }
+      break
     case 'Polygon':
       for (const ring of (this as Geometry<Polygon>).coordinates) {
         for (const coordinate of ring) {
+          yield coordinate as Flat extends true ? Coordinate2D : Coordinate
+        }
+      }
+      break
+    case 'MultiLineString':
+      for (const line of (this as Geometry<MultiLineString>).coordinates) {
+        for (const coordinate of line) {
           yield coordinate as Flat extends true ? Coordinate2D : Coordinate
         }
       }
@@ -248,10 +289,22 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
       const prev = this.coordinates as coordinate<Flat>
       const next = mapCoords(prev) as coordinates<Point, Flat>
       return new Geometry<Point, Flat>('Point', next) as Geometry<G, Flat>
+    } else if (this.isMultiPoint()) {
+      const prev = this.coordinates as coordinate<Flat>[]
+      const next = prev.map(mapCoords) as coordinate<Flat>[]
+      return new Geometry<MultiPoint, Flat>('MultiPoint', next as coordinates<MultiPoint, Flat>) as Geometry<G, Flat>
+    } else if (this.isLineString()) {
+      const prev = this.coordinates as coordinate<Flat>[]
+      const next = prev.map(mapCoords) as coordinate<Flat>[]
+      return new Geometry<LineString, Flat>('LineString', next as coordinates<LineString, Flat>) as Geometry<G, Flat>
     } else if (this.isPolygon()) {
       const prev = this.coordinates as coordinate<Flat>[][]
       const next = prev.map(coords => coords.map(mapCoords)) as coordinate<Flat>[][]
       return new Geometry<Polygon, Flat>('Polygon', next as coordinates<Polygon, Flat>) as Geometry<G, Flat>
+    } else if (this.isMultiLineString()) {
+      const prev = this.coordinates as coordinate<Flat>[][]
+      const next = prev.map(line => line.map(mapCoords)) as coordinate<Flat>[][]
+      return new Geometry<MultiLineString, Flat>('MultiLineString', next as coordinates<MultiLineString, Flat>) as Geometry<G, Flat>
     } else if (this.isMultiPolygon()) {
       const prev = this.coordinates as coordinate<Flat>[][][]
       const next = prev.map(ring => ring.map(coords => coords.map(mapCoords))) as coordinate<Flat>[][][]
@@ -298,6 +351,9 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
 const supportedGeometryTypes = [
   'Point',
+  'MultiPoint',
+  'LineString',
   'Polygon',
+  'MultiLineString',
   'MultiPolygon',
 ]

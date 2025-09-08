@@ -1,15 +1,15 @@
-import { MultiPolygon, Point, Polygon } from 'geojson'
+import { MultiLineString, MultiPoint, MultiPolygon, Point, Polygon, LineString } from 'geojson'
 
-export type { MultiPolygon, Point, Polygon }
+export type { MultiPolygon, Point, Polygon, MultiPoint, LineString, MultiLineString }
 
-export const SupportedGeoJSONTypes = ['Point', 'MultiPoint', 'Polygon', 'MultiPolygon', 'LineString', 'MultiLineString'] as const
+export const SupportedGeoJSONTypes = ['Point', 'MultiPoint', 'LineString', 'Polygon', 'MultiLineString', 'MultiPolygon'] as const
 export type SupportedGeoJSONType = (typeof SupportedGeoJSONTypes)[number]
 
 export function isSupportedGeoJSONType(type: string): type is SupportedGeoJSONType {
   return SupportedGeoJSONTypes.includes(type as SupportedGeoJSONType)
 }
 
-export type SupportedGeometry = Point | Polygon | MultiPolygon
+export type SupportedGeometry = Point | MultiPoint | LineString | Polygon | MultiLineString | MultiPolygon
 
 export type Coordinate = Coordinate2D | Coordinate3D
 export type Coordinate2D = [number, number]
@@ -32,14 +32,16 @@ export type coordinates<G extends SupportedGeometry, Flat extends boolean> =
     ? ensureCoordinate2D<G['coordinates']>
     : ensureCoordinate<G['coordinates']>
 
-export type ensureCoordinate<A extends number[] | number[][][] | number[][][][]> =
+export type ensureCoordinate<A extends number[] | number[][] | number[][][] | number[][][][]> =
   A extends number[] ? Coordinate :
-    A extends number[][][] ? Ring[] :
-      A extends number[][][][] ? Ring[][] :
-        never
+    A extends number[][] ? Coordinate[] :
+      A extends number[][][] ? Ring[] :
+        A extends number[][][][] ? Ring[][] :
+          never
 
-export type ensureCoordinate2D<A extends number[] | number[][][] | number[][][][]> =
+export type ensureCoordinate2D<A extends number[] | number[][] | number[][][] | number[][][][]> =
   A extends number[] ? Coordinate2D :
-    A extends number[][][] ? Ring2D[] :
-      A extends number[][][][] ? Ring2D[][] :
-        never
+    A extends number[][] ? Coordinate2D[] :
+      A extends number[][][] ? Ring2D[] :
+        A extends number[][][][] ? Ring2D[][] :
+          never
