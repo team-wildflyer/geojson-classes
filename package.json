@@ -30,10 +30,11 @@
     "ytil": "workspace:^"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.20",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.1.2",
     "tsc-alias": "^1.8.8",
-    "typescript": "^5.9.2",
-    "@types/jest": "^29.5.14"
+    "typescript": "^5.9.2"
   }
 }
