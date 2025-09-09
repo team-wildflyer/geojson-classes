@@ -1,9 +1,7 @@
 import * as turf from '@turf/turf'
 import { LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
-import * as wkx from 'wkx'
 import { arrayEquals, isPlainObject, memoized } from 'ytil'
-
 import { BBox } from './BBox'
 import { Feature } from './Feature'
 import { coordinate, Coordinate, Coordinate2D, coordinates, Ring, SupportedGeometry } from './types'
@@ -21,7 +19,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region Factory
 
-  public static from<G extends SupportedGeometry, Flat extends boolean = boolean>(input: Geometry<G, Flat> | G | Buffer): Geometry<G, Flat> {
+  public static from<G extends SupportedGeometry, Flat extends boolean = boolean>(input: Geometry<G, Flat> | G): Geometry<G, Flat> {
     if (input instanceof Geometry) {
       return input
     }
@@ -31,12 +29,6 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
         throw new Error(`Unsupported geometry type: ${input.type}`)
       }
       return new Geometry(input.type, input.coordinates as coordinates<G, Flat>)
-    } else if (input instanceof Buffer) {
-      const geojson = wkx.Geometry.parse(input).toGeoJSON() as G
-      if (!supportedGeometryTypes.includes(geojson.type)) {
-        throw new Error(`Unsupported geometry type: ${geojson.type}`)
-      }
-      return new Geometry(geojson.type, geojson.coordinates as coordinates<G, Flat>)
     } else {
       throw new Error('Invalid input')
     }
@@ -245,12 +237,6 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
       type:        this.type,
       coordinates: this.coordinates as G['coordinates'],
     } as G
-  }
-
-  @memoized
-  public get wkb() {
-    const wkxGeometry = wkx.Geometry.parseGeoJSON(this.geojson)
-    return wkxGeometry.toWkb()
   }
 
   public feature<P extends GeoJSON.GeoJsonProperties>(properties: P, options: {id?: turf.helpers.Id} = {}): Feature<G, P> {
