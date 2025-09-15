@@ -113,29 +113,17 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region dimensions
 
-  private _area: number | undefined
+  /**
+   * Area in square meters.
+   */
+  @memoized
   public get area(): number {
-    if (this._area == null) {
-      if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
-        this._area = 0
-      } else if (this.isPolygon() || this.isMultiPolygon()) {
-        this._area = turf.area(this.geojson)
-      } else {
-        throw new Error(`Unsupported geometry type for area calculation: ${this.type}`)
-      }
-    }
-    return this._area
-  }
-
-  public get areaHa(): string {
-    const area = this.area
-    const ha = area / 10000
-    if (ha === 0) {
-      return '0 ha'
-    } else if (ha < 10) {
-      return `${(this.area / 10000).toFixed(1)}ha`
+    if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
+      return 0
+    } else if (this.isPolygon() || this.isMultiPolygon()) {
+      return turf.area(this.geojson)
     } else {
-      return `${(this.area / 10000).toFixed(0)}ha`
+      throw new Error(`Unsupported geometry type for area calculation: ${this.type}`)
     }
   }
   
