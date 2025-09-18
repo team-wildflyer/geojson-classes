@@ -268,6 +268,11 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     )
   }
 
+  public simplify(this: Geometry<Polygon | MultiPolygon>, tolerance: number, highQuality: boolean = false): this {
+    const simplified = turf.simplify(this.geojson, {tolerance, highQuality, mutate: false})
+    return Geometry.from(simplified) as this
+  }
+
   public intersect(this: Geometry<Polygon | MultiPolygon>, geometry: Geometry<Polygon | MultiPolygon>): Geometry | null {
     const features = turf.featureCollection([
       turf.feature(this.geojson),
@@ -278,6 +283,22 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     if (intersection == null) { return null }
 
     return Geometry.from(intersection.geometry)
+  }
+
+  public union(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): Geometry<MultiPolygon> {
+    const features = turf.featureCollection([
+      turf.feature(this.geojson),
+      turf.feature(other.geojson),
+    ])
+    
+    const geojson = turf.union(features)
+    if (geojson == null) { return Geometry.multiPolygon([]) }
+
+    if (geojson.geometry.type === 'Polygon') {
+      return Geometry.from(geojson.geometry).toMultiPolygon()
+    } else {
+      return Geometry.from(geojson.geometry)
+    }
   }
 
   public map(fn: (coordinate: coordinate<Flat>) => number[], flatten: boolean = true): Geometry<G, Flat> {
