@@ -379,7 +379,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // -----
   // UI utils
-  public printCoordinates(decimals = 4): string {
+  public printCoordinates(decimals = 3): string {
     if(this.isPoint()) {
       return this.coordinates.map(c => c.toFixed(decimals)).join(', ')
     } else {
