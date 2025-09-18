@@ -377,6 +377,35 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return Geometry.from(merged.geometry)
   }
 
+<<<<<<< Updated upstream
+=======
+  // -----
+  // UI utils
+  public printCoordinates(decimals = 4): string {
+    if(this.isPoint()) {
+      return this.coordinates.map(c => c.toFixed(decimals)).join(', ')
+    } else {
+      return this.allCoordinates.map(c => c.map(coord => coord.toFixed(decimals)).join(', ')).join(' | ')
+    }
+  }
+
+  public printSurfaceArea(): string {
+    if (this.isPolygon() || this.isMultiPolygon()) {
+      const area = this.area
+      if (area < 10000) {
+        return `${Math.round(area)} m²`
+      } else if (area < 1000000) {
+        return `${(area / 10000).toFixed(1)} ha`
+      } else {
+        return `${Math.round(area / 10000)} ha`
+      }
+    }
+    return 'N/A'
+  }
+
+  // ----
+
+>>>>>>> Stashed changes
 }
 
 const supportedGeometryTypes = [
