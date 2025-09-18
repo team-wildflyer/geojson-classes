@@ -377,8 +377,6 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     return Geometry.from(merged.geometry)
   }
 
-<<<<<<< Updated upstream
-=======
   // -----
   // UI utils
   public printCoordinates(decimals = 4): string {
@@ -405,7 +403,6 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // ----
 
->>>>>>> Stashed changes
 }
 
 const supportedGeometryTypes = [
