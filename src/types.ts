@@ -1,9 +1,24 @@
-import { MultiLineString, MultiPoint, MultiPolygon, Point, Polygon, LineString } from 'geojson'
+import { LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon } from 'geojson'
 
 export type { MultiPolygon, Point, Polygon, MultiPoint, LineString, MultiLineString }
 
-export const SupportedGeoJSONTypes = ['Point', 'MultiPoint', 'LineString', 'Polygon', 'MultiLineString', 'MultiPolygon'] as const
-export type SupportedGeoJSONType = (typeof SupportedGeoJSONTypes)[number]
+export interface SupportedGeoJSONTypeMap {
+  Point: Point,
+  MultiPoint: MultiPoint,
+  LineString: LineString,
+  Polygon: Polygon,
+  MultiLineString: MultiLineString,
+  MultiPolygon: MultiPolygon,
+}
+export type SupportedGeoJSONType = keyof SupportedGeoJSONTypeMap
+export const SupportedGeoJSONTypes: SupportedGeoJSONType[] = [
+  'Point',
+  'MultiPoint',
+  'LineString',
+  'Polygon',
+  'MultiLineString',
+  'MultiPolygon',
+]
 
 export function isSupportedGeoJSONType(type: string): type is SupportedGeoJSONType {
   return SupportedGeoJSONTypes.includes(type as SupportedGeoJSONType)

@@ -105,29 +105,17 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region dimensions
 
-  private _area: number | undefined
+  /**
+   * Area in square meters.
+   */
+  @memoized
   public get area(): number {
-    if (this._area == null) {
-      if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
-        this._area = 0
-      } else if (this.isPolygon() || this.isMultiPolygon()) {
-        this._area = turf.area(this.geojson)
-      } else {
-        throw new Error(`Unsupported geometry type for area calculation: ${this.type}`)
-      }
-    }
-    return this._area
-  }
-
-  public get areaHa(): string {
-    const area = this.area
-    const ha = area / 10000
-    if (ha === 0) {
-      return '0 ha'
-    } else if (ha < 10) {
-      return `${(this.area / 10000).toFixed(1)}ha`
+    if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
+      return 0
+    } else if (this.isPolygon() || this.isMultiPolygon()) {
+      return turf.area(this.geojson)
     } else {
-      return `${(this.area / 10000).toFixed(0)}ha`
+      throw new Error(`Unsupported geometry type for area calculation: ${this.type}`)
     }
   }
   
@@ -266,6 +254,11 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     )
   }
 
+  public simplify(this: Geometry<Polygon | MultiPolygon>, tolerance: number, highQuality: boolean = false): this {
+    const simplified = turf.simplify(this.geojson, {tolerance, highQuality, mutate: false})
+    return Geometry.from(simplified) as this
+  }
+
   public intersect(this: Geometry<Polygon | MultiPolygon>, geometry: Geometry<Polygon | MultiPolygon>): Geometry | null {
     const features = turf.featureCollection([
       turf.feature(this.geojson),
@@ -276,6 +269,22 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
     if (intersection == null) { return null }
 
     return Geometry.from(intersection.geometry)
+  }
+
+  public union(this: Geometry<Polygon | MultiPolygon>, other: Geometry<Polygon | MultiPolygon>): Geometry<MultiPolygon> {
+    const features = turf.featureCollection([
+      turf.feature(this.geojson),
+      turf.feature(other.geojson),
+    ])
+    
+    const geojson = turf.union(features)
+    if (geojson == null) { return Geometry.multiPolygon([]) }
+
+    if (geojson.geometry.type === 'Polygon') {
+      return Geometry.from(geojson.geometry).toMultiPolygon()
+    } else {
+      return Geometry.from(geojson.geometry)
+    }
   }
 
   public map(fn: (coordinate: coordinate<Flat>) => number[], flatten: boolean = true): Geometry<G, Flat> {
@@ -353,6 +362,32 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
     return Geometry.from(merged.geometry)
   }
+
+  // -----
+  // UI utils
+  public printCoordinates(decimals = 3): string {
+    if(this.isPoint()) {
+      return this.coordinates.map(c => c.toFixed(decimals)).join(', ')
+    } else {
+      return this.allCoordinates.map(c => c.map(coord => coord.toFixed(decimals)).join(', ')).join(' | ')
+    }
+  }
+
+  public printSurfaceArea(): string {
+    if (this.isPolygon() || this.isMultiPolygon()) {
+      const area = this.area
+      if (area < 10000) {
+        return `${Math.round(area)} m²`
+      } else if (area < 1000000) {
+        return `${(area / 10000).toFixed(1)} ha`
+      } else {
+        return `${Math.round(area / 10000)} ha`
+      }
+    }
+    return 'N/A'
+  }
+
+  // ----
 
 }
 
