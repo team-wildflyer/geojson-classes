@@ -1,4 +1,5 @@
-import { memoized } from 'ytil'
+import { enumerable, memoized } from 'ytil'
+
 import { BBox } from './BBox'
 import { Geometry } from './Geometry'
 import { MultiPolygon, Polygon, SupportedGeometry } from './types'
@@ -23,10 +24,12 @@ export class Feature<G extends SupportedGeometry, P extends GeoJSON.GeoJsonPrope
     )
   }
 
+  @enumerable(false)
   public get type() {
     return this.geometry.type
   }
 
+  @enumerable(false)
   public get coordinates() {
     return this.geometry.coordinates  
   }
@@ -75,6 +78,7 @@ export class Feature<G extends SupportedGeometry, P extends GeoJSON.GeoJsonPrope
   }
 
   @memoized
+  @enumerable(false)
   public get geojson(): GeoJSON.Feature<G, P> {
     return {
       type:       'Feature',
