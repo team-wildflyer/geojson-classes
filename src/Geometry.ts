@@ -3,7 +3,7 @@ import { Buffer } from 'buffer'
 import { LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon } from 'geojson'
 import { isArray } from 'lodash'
 import * as wkx from 'wkx'
-import { arrayEquals, isPlainObject, memoized } from 'ytil'
+import { arrayEquals, enumerable, isPlainObject, memoized } from 'ytil'
 
 import { BBox } from './BBox'
 import { Feature } from './Feature'
@@ -93,19 +93,19 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   // #region Properties
   
-  private _center: Geometry<Point> | undefined
+  @memoized
   public center(): Geometry<Point> {
-    return this._center ??= Geometry.from(turf.center(this.geojson).geometry)
+    return Geometry.from(turf.center(this.geojson).geometry)
   }
   
-  private _centroid: Geometry<Point> | undefined
+  @memoized
   public centroid(): Geometry<Point> {
-    return this._centroid ??= Geometry.from(turf.centroid(this.geojson).geometry)
+    return Geometry.from(turf.centroid(this.geojson).geometry)
   }
   
-  private _bbox: BBox | undefined
+  @memoized
   public bbox(): BBox {
-    return this._bbox ??= BBox.around(this)
+    return BBox.around(this)
   }
 
   // #endregion
@@ -116,6 +116,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
    * Area in square meters.
    */
   @memoized
+  @enumerable(false)
   public get area(): number {
     if (this.isPoint() || this.isMultiPoint() || this.isLineString() || this.isMultiLineString()) {
       return 0
@@ -227,6 +228,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   // #endregion
 
   @memoized
+  @enumerable(false)
   public get geojson(): G {
     return {
       type:        this.type,
@@ -235,6 +237,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   }
 
   @memoized
+  @enumerable(false)
   public get wkb() {
     const wkxGeometry = wkx.Geometry.parseGeoJSON(this.geojson)
     return wkxGeometry.toWkb()

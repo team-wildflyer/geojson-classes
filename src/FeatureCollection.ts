@@ -2,7 +2,7 @@
 
 
 
-import { sparse } from 'ytil'
+import { enumerable, sparse } from 'ytil'
 
 import { BBox } from './BBox'
 import { Feature } from './Feature'
@@ -38,6 +38,7 @@ export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, 
     )
   }
 
+  @enumerable(false)
   public get size() {
     return this.features.length
   }

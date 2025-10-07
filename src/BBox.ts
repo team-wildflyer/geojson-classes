@@ -1,6 +1,6 @@
 import * as turf from '@turf/turf'
 import { Point, Polygon } from 'geojson'
-import { arrayEquals, wrapArray } from 'ytil'
+import { arrayEquals, enumerable, memoized, wrapArray } from 'ytil'
 
 import { Geometry } from './Geometry'
 import { SupportedGeometry, TileCoordinates } from './types'
@@ -12,7 +12,12 @@ import { SupportedGeometry, TileCoordinates } from './types'
 export class BBox {
 
   constructor(bbox: GeoJSON.BBox) {
-    this.bbox = ensureBBox2D(bbox)
+    bbox = ensureBBox2D(bbox)
+
+    this.lon1 = bbox[0]
+    this.lat1 = bbox[1]
+    this.lon2 = bbox[2]
+    this.lat2 = bbox[3]
 
     // Latitudes must be strictly increasing.
     if (this.lat1 > this.lat2) {
@@ -42,13 +47,16 @@ export class BBox {
 
   public static from(input: BBoxLike) {
     if (input instanceof BBox) {
-      return new BBox([...input.bbox])
+      return new BBox(input.geojson)
     } else {
       return new BBox(input)
     }
   }
 
-  public readonly bbox: [number, number, number, number]
+  public lon1: number
+  public lat1: number
+  public lon2: number
+  public lat2: number
 
   public static world(latExtent: number = 85.0511287798066) {
     return new BBox([-180, -latExtent, 180, latExtent])
@@ -78,11 +86,13 @@ export class BBox {
 
   // #region Derived
 
-  public get lon1() { return this.bbox[0] }
-  public get lat1() { return this.bbox[1] }
-  public get lon2() { return this.bbox[2] }
-  public get lat2() { return this.bbox[3] }
+  @memoized
+  @enumerable(false)
+  public get geojson(): [number, number, number, number] {
+    return [this.lon1, this.lat1, this.lon2, this.lat2]
+  }
 
+  @enumerable(false)
   public get lonspan() {
     if (this.inverted) {
       return 360 - Math.abs(this.lon1 - this.lon2)
@@ -90,8 +100,10 @@ export class BBox {
       return this.lon2 - this.lon1
     }
   }
+
+  @enumerable(false)
   public get latspan() {
-    return this.bbox[3] - this.bbox[1]
+    return this.lat2 - this.lat1
   }
 
   public get southWest(): Geometry<Point> {
@@ -127,26 +139,26 @@ export class BBox {
   }
 
   public get global() {
-    if (this.bbox[0] > -180) { return false }
-    if (this.bbox[2] < 180) { return false }
-    if (this.bbox[1] > -90) { return false }
-    if (this.bbox[3] < 90) { return false }
+    if (this.lon1 > -180) { return false }
+    if (this.lon2 < 180) { return false }
+    if (this.lat1 > -90) { return false }
+    if (this.lat2 < 90) { return false }
 
     return true    
   }
 
-  private _center: Geometry<Point> | undefined
+  @memoized
+  @enumerable(false)
   public center(): Geometry<Point> {
-    return this._center ??= (() => {
-      const lon = this.inverted ? (this.bbox[0] + this.bbox[2] + 360) / 2 : (this.bbox[0] + this.bbox[2]) / 2
-      const lat = (this.bbox[1] + this.bbox[3]) / 2
-      return Geometry.point(lon, lat)
-    })()
+    const lon = this.inverted ? (this.lon1 + this.lon2 + 360) / 2 : (this.lon1 + this.lon2) / 2
+    const lat = (this.lat1 + this.lat2) / 2
+    return Geometry.point(lon, lat)
   }
 
-  private _polygon: Geometry<Polygon> | undefined
+  @memoized
+  @enumerable(false)
   public polygon(): Geometry<Polygon> {
-    return this._polygon ??= Geometry.from(turf.bboxPolygon(this.bbox).geometry)
+    return Geometry.from(turf.bboxPolygon(this.geojson).geometry)
   }
 
   // #endregion
@@ -154,7 +166,7 @@ export class BBox {
   // #region Testers
 
   public equals(other: BBox) {
-    return arrayEquals(this.bbox, other.bbox)
+    return arrayEquals(this.geojson, other.geojson)
   }
 
   public contains(point: Geometry<Point>) {
@@ -236,7 +248,7 @@ export class BBox {
   // #region Conversions
 
   public toArray() {
-    return [...this.bbox]
+    return [...this.geojson]
   }
 
   public toString(decimals: number = 2) {
