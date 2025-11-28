@@ -13,7 +13,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
 
   public constructor(
     public readonly type: G['type'],
-    public readonly coordinates: coordinates<G, Flat>
+    public readonly coordinates: coordinates<G, Flat>,
   ) {
     if (!supportedGeometryTypes.includes(type)) {
       throw new Error(`Unsupported geometry type: ${type}`)
@@ -266,7 +266,7 @@ export class Geometry<G extends SupportedGeometry = SupportedGeometry, Flat exte
   public transpose(): Geometry {
     return this.map(coordinate => coordinate.length === 2
       ? [coordinate[1], coordinate[0]]
-      : [coordinate[1], coordinate[0], coordinate[2]]
+      : [coordinate[1], coordinate[0], coordinate[2]],
     )
   }
 

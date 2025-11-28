@@ -86,7 +86,7 @@ export class FeatureCollection<G extends SupportedGeometry = SupportedGeometry, 
 
   public map<GG extends SupportedGeometry, PP extends GeoJSON.GeoJsonProperties>(fn: (feature: Feature<G, P>) => Feature<GG, PP>): FeatureCollection<GG, PP> {
     return new FeatureCollection<GG, PP>(
-      this.features.map(fn)
+      this.features.map(fn),
     )
   }
 

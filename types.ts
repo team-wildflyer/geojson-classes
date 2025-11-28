@@ -3,12 +3,12 @@ import { LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon }
 export type { MultiPolygon, Point, Polygon, MultiPoint, LineString, MultiLineString }
 
 export interface SupportedGeoJSONTypeMap {
-  Point: Point,
-  MultiPoint: MultiPoint,
-  LineString: LineString,
-  Polygon: Polygon,
+  Point:           Point,
+  MultiPoint:      MultiPoint,
+  LineString:      LineString,
+  Polygon:         Polygon,
   MultiLineString: MultiLineString,
-  MultiPolygon: MultiPolygon,
+  MultiPolygon:    MultiPolygon,
 }
 export type SupportedGeoJSONType = keyof SupportedGeoJSONTypeMap
 export const SupportedGeoJSONTypes: SupportedGeoJSONType[] = [
